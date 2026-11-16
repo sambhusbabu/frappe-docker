@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     image: frappe-multisite:latest
-    restart: "no"
     entrypoint: ["bash", "-c"]
     command:
       - >
@@ -18,8 +17,8 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: "3306"
-      REDIS_CACHE: redis-cache:6379
-      REDIS_QUEUE: redis-queue:6379
+      REDIS_CACHE: redis_cache:6379
+      REDIS_QUEUE: redis_queue:6379
       SOCKETIO_PORT: "9000"
     volumes:
       - sites:/home/frappe/frappe-bench/sites
@@ -27,20 +26,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      redis-cache:
+      redis_cache:
         condition: service_started
-      redis-queue:
+      redis_queue:
         condition: service_started
 
-  create-sites:
+  create_sites:
     image: frappe-multisite:latest
-    restart: "no"
     entrypoint: ["bash", "-c"]
     command:
       - >
         wait-for-it -t 120 db:3306;
-        wait-for-it -t 120 redis-cache:6379;
-        wait-for-it -t 120 redis-queue:6379;
+        wait-for-it -t 120 redis_cache:6379;
+        wait-for-it -t 120 redis_queue:6379;
         IFS=',' read -ra SITE_LIST <<< "$$SITES";
         for SITE in "$${SITE_LIST[@]}"; do
           SITE=$$(echo "$$SITE" | xargs);
@@ -110,7 +108,7 @@ services:
       configurator:
         condition: service_completed_successfully
 
-  queue-short:
+  queue_short:
     image: frappe-multisite:latest
     restart: unless-stopped
     command: ["bench", "worker", "--queue", "short,default"]
@@ -121,7 +119,7 @@ services:
       configurator:
         condition: service_completed_successfully
 
-  queue-long:
+  queue_long:
     image: frappe-multisite:latest
     restart: unless-stopped
     command: ["bench", "worker", "--queue", "long,default,short"]
@@ -155,24 +153,24 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: ${SERVICE_PASSWORD_DB}
     volumes:
-      - db-data:/var/lib/mysql
+      - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost --password=$$MARIADB_ROOT_PASSWORD"]
       interval: 5s
       retries: 20
 
-  redis-cache:
+  redis_cache:
     image: redis:6.2-alpine
     restart: unless-stopped
 
-  redis-queue:
+  redis_queue:
     image: redis:6.2-alpine
     restart: unless-stopped
     volumes:
-      - redis-queue-data:/data
+      - redis_queue_data:/data
 
 volumes:
-  db-data:
-  redis-queue-data:
+  db_data:
+  redis_queue_data:
   sites:
   logs:
