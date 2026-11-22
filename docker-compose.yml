@@ -5,7 +5,9 @@
 # - Do not put shell scripts or values starting with "$" (like $$host) in this
 #   file: Coolify parses them as environment variable names and fails with
 #   "The key must start with a letter or underscore...". Scripts live in ./scripts.
-# - Only the "frontend" service gets domains (port 8080), one per site.
+# - The public hostname is the SITES variable, not a Coolify domain.
+#   Cloudflare terminates HTTPS and the tunnel forwards to Coolify's proxy on port 80.
+#   The frontend labels below make that proxy send the request to nginx on port 8080.
 
 services:
   configurator:
@@ -87,10 +89,20 @@ services:
       UPSTREAM_REAL_IP_RECURSIVE: "on"
       PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-120}
       CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
-    # Tells Coolify which container port to route to. This does not publish
-    # the port on the host and does not contain the site domain.
     expose:
       - "8080"
+    # SITES is one domain, or several written as: a.example.com`, `b.example.com
+    # so Traefik receives Host(`a.example.com`, `b.example.com`).
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.frappe-${BENCH_NAME:-main}.rule=Host(`${SITES}`)
+      - traefik.http.routers.frappe-${BENCH_NAME:-main}.entrypoints=http
+      - traefik.http.routers.frappe-${BENCH_NAME:-main}.service=frappe-${BENCH_NAME:-main}
+      - traefik.http.services.frappe-${BENCH_NAME:-main}.loadbalancer.server.port=8080
+    networks:
+      - default
+      - coolify
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
@@ -183,3 +195,7 @@ volumes:
   redis-queue-data:
   sites:
   logs:
+
+networks:
+  coolify:
+    external: true
