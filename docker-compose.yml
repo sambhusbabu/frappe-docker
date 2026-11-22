@@ -5,9 +5,10 @@
 # - Do not put shell scripts or values starting with "$" (like $$host) in this
 #   file: Coolify parses them as environment variable names and fails with
 #   "The key must start with a letter or underscore...". Scripts live in ./scripts.
-# - The public hostname is the SITES variable, not a Coolify domain.
-#   Cloudflare terminates HTTPS and the tunnel forwards to Coolify's proxy on port 80.
-#   The frontend labels below make that proxy send the request to nginx on port 8080.
+# - Cloudflare terminates HTTPS and the tunnel forwards to Coolify's proxy on port 80.
+#   The frontend labels send that request to nginx on port 8080.
+#   Write the hostname literally in those labels. Coolify does not expand ${...} in labels,
+#   so Host(`${SITES}`) is matched as the text "${SITES}" and every real domain 404s.
 
 services:
   configurator:
@@ -91,15 +92,14 @@ services:
       CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
     expose:
       - "8080"
-    # SITES is one domain, or several written as: a.example.com`, `b.example.com
-    # so Traefik receives Host(`a.example.com`, `b.example.com`).
+    # Literal hostnames only. Add another domain as Host(`a.example.com`, `b.example.com`).
     labels:
       - traefik.enable=true
       - traefik.docker.network=coolify
-      - traefik.http.routers.frappe-${BENCH_NAME:-main}.rule=Host(`${SITES}`)
-      - traefik.http.routers.frappe-${BENCH_NAME:-main}.entrypoints=http
-      - traefik.http.routers.frappe-${BENCH_NAME:-main}.service=frappe-${BENCH_NAME:-main}
-      - traefik.http.services.frappe-${BENCH_NAME:-main}.loadbalancer.server.port=8080
+      - traefik.http.routers.frappe.rule=Host(`frappehome.sambhusbabu.com`)
+      - traefik.http.routers.frappe.entrypoints=http
+      - traefik.http.routers.frappe.service=frappe
+      - traefik.http.services.frappe.loadbalancer.server.port=8080
     networks:
       - default
       - coolify
